@@ -1,20 +1,31 @@
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronRight, Brain } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Lightbulb,
+  GitCompareArrows,
+  Undo2,
+} from "lucide-react";
 import { MarkdownContent } from "./MarkdownContent";
 import { ToolCallCard } from "./ToolCallCard";
-import { GeneratingIndicator } from "./GeneratingIndicator";
 import type { MergedMessage, TextBlock, ImageBlock } from "../../types";
 
 interface MessageBubbleProps {
   message: MergedMessage;
   isGenerating?: boolean;
   isLastAssistant?: boolean;
+  snapshotExists?: boolean;
+  onShowDiff?: (messageId: string) => void;
+  onRollback?: (messageId: string) => void;
 }
 
 export function MessageBubble({
   message,
   isGenerating = false,
   isLastAssistant = false,
+  snapshotExists = false,
+  onShowDiff,
+  onRollback,
 }: MessageBubbleProps) {
   if (message.role === "user") {
     const textBlocks = message.blocks.filter(
@@ -51,14 +62,21 @@ export function MessageBubble({
   }
 
   // Check if the last text block is an error message
-  const lastTextBlock = [...message.blocks].reverse().find((b) => b.type === "text") as TextBlock | undefined;
-  const isError = lastTextBlock?.content.startsWith("⚠️");
+  const lastTextBlock = [...message.blocks]
+    .reverse()
+    .find((b) => b.type === "text") as TextBlock | undefined;
 
   return (
     <div className="flex-1 min-w-0 space-y-2">
       {message.blocks.map((block) => {
         if (block.type === "thinking") {
-          return <ThinkingBlockCard key={block.id} content={block.content} isStreaming={isGenerating && isLastAssistant} />;
+          return (
+            <ThinkingBlockCard
+              key={block.id}
+              content={block.content}
+              isStreaming={isGenerating && isLastAssistant}
+            />
+          );
         }
         if (block.type === "text") {
           return (
@@ -72,12 +90,35 @@ export function MessageBubble({
         }
         return null;
       })}
-      {isGenerating && isLastAssistant && !isError && <GeneratingIndicator />}
+      {snapshotExists && !(isGenerating && isLastAssistant) && (
+        <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border/30">
+          <button
+            onClick={() => onShowDiff?.(message.id)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            <GitCompareArrows className="w-3.5 h-3.5" />
+            <span>Diff</span>
+          </button>
+          <button
+            onClick={() => onRollback?.(message.id)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+            <span>回滚</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-function ThinkingBlockCard({ content, isStreaming }: { content: string; isStreaming: boolean }) {
+function ThinkingBlockCard({
+  content,
+  isStreaming,
+}: {
+  content: string;
+  isStreaming: boolean;
+}) {
   const [expanded, setExpanded] = useState(isStreaming);
 
   // Auto-collapse when streaming ends
@@ -89,14 +130,18 @@ function ThinkingBlockCard({ content, isStreaming }: { content: string; isStream
     <div className="border border-border/50 rounded-lg overflow-hidden text-xs">
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-1.5 w-full px-3 py-2 text-muted-foreground hover:bg-muted/50 transition-colors"
+        className="flex items-center gap-2 w-full px-3 py-2 text-muted-foreground hover:bg-muted/50 transition-colors"
       >
-        <Brain className="w-3.5 h-3.5" />
-        <span className="font-medium">思考过程</span>
-        {expanded ? <ChevronDown className="w-3.5 h-3.5 ml-auto" /> : <ChevronRight className="w-3.5 h-3.5 ml-auto" />}
+        <Lightbulb className="w-3.5 h-3.5 text-purple-500" />
+        <span className="font-medium text-foreground">思考过程</span>
+        {expanded ? (
+          <ChevronDown className="w-3.5 h-3.5 ml-auto" />
+        ) : (
+          <ChevronRight className="w-3.5 h-3.5 ml-auto" />
+        )}
       </button>
       {expanded && (
-        <div className="px-3 pb-2 text-muted-foreground max-h-60 overflow-y-auto">
+        <div className="px-3 py-2 text-muted-foreground max-h-60 overflow-y-auto">
           <MarkdownContent content={content} variant="assistant" />
         </div>
       )}

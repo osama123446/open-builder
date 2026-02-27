@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import localforage from "localforage";
+import { useSnapshotStore } from "./snapshot";
 import type { Conversation, Message, ProjectFiles } from "../types";
 
 // ─── localforage storage adapter ─────────────────────────────────────────────
@@ -86,6 +87,7 @@ export const useConversationStore = create<ConversationState>()(
       },
 
       deleteConversation: (id) => {
+        useSnapshotStore.getState().deleteSnapshotsForConversation(id);
         set((s) => {
           const { [id]: _, ...rest } = s.conversations;
           let nextActiveId = s.activeId;

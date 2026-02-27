@@ -1,14 +1,55 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { Undo2 } from "lucide-react";
 import { ChatHeader } from "./chat/ChatHeader";
 import { ChatInput } from "./chat/ChatInput";
 import { EmptyState } from "./chat/EmptyState";
 import { MessageBubble } from "./chat/MessageBubble";
 import { MobilePreview } from "./chat/MobilePreview";
+import { GeneratingIndicator } from "./chat/GeneratingIndicator";
 import { SettingsWarning } from "./chat/SettingsWarning";
 import { SessionList } from "./chat/SessionList";
+import { DiffModal } from "./chat/DiffModal";
 import { useMergedMessages } from "../hooks/useMergedMessages";
+import { mergeMessages } from "../lib/mergeMessages";
 import { useIsMobile } from "../hooks/useIsMobile";
-import type { Message, ProjectFiles } from "../types";
+import { useConversationStore } from "../store/conversation";
+import { useSnapshotStore } from "../store/snapshot";
+import type { Message, ProjectFiles, ProjectSnapshot } from "../types";
+
+const EMPTY_SNAPSHOTS: ProjectSnapshot[] = [];
+
+/** Given a MergedMessage ID like "assistant-3", find the end index (exclusive)
+ *  of that assistant group in the raw messages array. */
+function findAssistantGroupEnd(messages: Message[], mergedId: string): number {
+  const startIdx = parseInt(mergedId.replace("assistant-", ""), 10);
+  if (isNaN(startIdx) || startIdx >= messages.length) return messages.length;
+  let j = startIdx;
+  while (
+    j < messages.length &&
+    (messages[j].role === "assistant" || messages[j].role === "tool")
+  ) {
+    j++;
+  }
+  return j;
+}
+
+/** Find the user message text right before a given merged assistant message */
+function findPrecedingUserLabel(messages: Message[], mergedId: string): string {
+  const merged = mergeMessages(messages);
+  const idx = merged.findIndex((m) => m.id === mergedId);
+  if (idx <= 0) return "";
+  // Walk backwards to find the preceding user message
+  for (let i = idx - 1; i >= 0; i--) {
+    if (merged[i].role === "user") {
+      const textBlock = merged[i].blocks.find((b) => b.type === "text");
+      if (textBlock && "content" in textBlock) {
+        const text = textBlock.content;
+        return text.length > 30 ? text.slice(0, 30) + "..." : text;
+      }
+    }
+  }
+  return "";
+}
 
 interface ChatInterfaceProps {
   messages: Message[];
@@ -17,6 +58,7 @@ interface ChatInterfaceProps {
   onGenerate: (prompt: string, images?: string[]) => Promise<void>;
   onStop: () => void;
   onOpenSettings: () => void;
+  onSetFiles: (files: ProjectFiles) => void;
   files: ProjectFiles;
   template: string;
   sandpackKey: number;
@@ -30,6 +72,7 @@ export function ChatInterface({
   onGenerate,
   onStop,
   onOpenSettings,
+  onSetFiles,
   files,
   template,
   sandpackKey,
@@ -41,6 +84,53 @@ export function ChatInterface({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mergedMessages = useMergedMessages(messages);
   const isMobile = useIsMobile();
+
+  // Snapshot state
+  const activeId = useConversationStore((s) => s.activeId);
+  const snapshots = useSnapshotStore((s) =>
+    activeId ? (s.snapshots[activeId] ?? EMPTY_SNAPSHOTS) : EMPTY_SNAPSHOTS,
+  );
+  const snapshotMessageIds = useMemo(
+    () => new Set(snapshots.map((s) => s.messageId)),
+    [snapshots],
+  );
+  const [diffMessageId, setDiffMessageId] = useState<string | null>(null);
+  const [rollbackConfirmId, setRollbackConfirmId] = useState<string | null>(
+    null,
+  );
+  // Ephemeral rollback hint: { messageId, label }
+  const [rollbackInfo, setRollbackInfo] = useState<{
+    messageId: string;
+    label: string;
+  } | null>(null);
+
+  /** Flush any pending manual edits into the latest snapshot */
+  const flushSnapshotUpdate = useCallback(() => {
+    if (activeId && snapshots.length > 0) {
+      useSnapshotStore.getState().updateLatestSnapshot(activeId, files);
+    }
+  }, [activeId, snapshots.length, files]);
+
+  const handleRollback = useCallback(
+    (messageId: string) => {
+      if (!activeId) return;
+      // Flush manual edits into the current snapshot before rollback
+      flushSnapshotUpdate();
+      const snap = useSnapshotStore
+        .getState()
+        .getSnapshotByMessageId(activeId, messageId);
+      if (!snap) return;
+      const restoredFiles = useSnapshotStore
+        .getState()
+        .reconstructFiles(activeId, snap.id);
+      onSetFiles(restoredFiles);
+      setRollbackConfirmId(null);
+      // Set rollback hint with preceding user message as label
+      const label = findPrecedingUserLabel(messages, messageId);
+      setRollbackInfo({ messageId, label });
+    },
+    [activeId, onSetFiles, messages, flushSnapshotUpdate],
+  );
 
   // Find the last assistant message index for the generating indicator
   let lastAssistantIdx = -1;
@@ -66,6 +156,17 @@ export function ChatInterface({
     const imgs = [...images];
     setInput("");
     setImages([]);
+
+    // Flush manual edits into the latest snapshot before generating
+    flushSnapshotUpdate();
+
+    // If we have a pending rollback, truncate messages to the rollback point first
+    if (rollbackInfo) {
+      const endIdx = findAssistantGroupEnd(messages, rollbackInfo.messageId);
+      useConversationStore.getState().setMessages(messages.slice(0, endIdx));
+      setRollbackInfo(null);
+    }
+
     await onGenerate(prompt, imgs.length > 0 ? imgs : undefined);
   };
 
@@ -94,20 +195,43 @@ export function ChatInterface({
             )}
 
             {mergedMessages.map((msg, i) => {
-              const isLastAssistant =
-                msg.role === "assistant" && i === lastAssistantIdx;
               return (
                 <MessageBubble
                   key={msg.id}
                   message={msg}
                   isGenerating={isGenerating}
-                  isLastAssistant={isLastAssistant}
+                  snapshotExists={snapshotMessageIds.has(msg.id)}
+                  onShowDiff={(id) => setDiffMessageId(id)}
+                  onRollback={(id) => setRollbackConfirmId(id)}
                 />
               );
             })}
 
             {isMobile && isProjectInitialized && !isGenerating && (
-              <MobilePreview files={files} template={template} sandpackKey={sandpackKey} />
+              <MobilePreview
+                files={files}
+                template={template}
+                sandpackKey={sandpackKey}
+              />
+            )}
+
+            {isGenerating && <GeneratingIndicator />}
+
+            {/* Rollback hint */}
+            {rollbackInfo && !isGenerating && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-400">
+                <Undo2 className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  已回滚到：
+                  <span className="font-medium">{rollbackInfo.label || "初始状态"}</span>
+                </span>
+                <button
+                  onClick={() => setRollbackInfo(null)}
+                  className="ml-auto text-amber-600/60 hover:text-amber-700 dark:hover:text-amber-300 transition-colors cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
             )}
 
             <div ref={messagesEndRef} />
@@ -123,6 +247,41 @@ export function ChatInterface({
             onImagesChange={setImages}
           />
         </>
+      )}
+
+      {/* Diff modal */}
+      {diffMessageId && activeId && (
+        <DiffModal
+          conversationId={activeId}
+          messageId={diffMessageId}
+          onClose={() => setDiffMessageId(null)}
+        />
+      )}
+
+      {/* Rollback confirmation */}
+      {rollbackConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg border p-6 shadow-lg max-w-sm mx-4">
+            <h3 className="text-sm font-semibold mb-2">确认回滚</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              回滚将把项目文件恢复到此次操作时的状态，此操作不可撤销。确定继续吗？
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setRollbackConfirmId(null)}
+                className="px-3 py-1.5 text-sm rounded-md border hover:bg-muted transition-colors cursor-pointer"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => handleRollback(rollbackConfirmId)}
+                className="px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
+              >
+                确认回滚
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github.min.css";
 
 const assistantComponents = {
   p: ({ children }: any) => (

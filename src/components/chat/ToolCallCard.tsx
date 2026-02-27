@@ -50,7 +50,9 @@ function countWebReaderUrls(result: string): { url: string; ok: boolean }[] {
   }
 }
 
-function parseConsoleIssues(result: string): { level: "error" | "warn"; text: string }[] {
+function parseConsoleIssues(
+  result: string,
+): { level: "error" | "warn"; text: string }[] {
   if (!result || result === "No console output yet.") return [];
   return result
     .split("\n")
@@ -81,8 +83,12 @@ export function ToolCallCard({
     toolName === "web_reader" && result ? countWebReaderUrls(result) : [];
   const consoleIssues =
     toolName === "get_console_logs" && result ? parseConsoleIssues(result) : [];
-  const consoleErrorCount = consoleIssues.filter((i) => i.level === "error").length;
-  const consoleWarnCount = consoleIssues.filter((i) => i.level === "warn").length;
+  const consoleErrorCount = consoleIssues.filter(
+    (i) => i.level === "error",
+  ).length;
+  const consoleWarnCount = consoleIssues.filter(
+    (i) => i.level === "warn",
+  ).length;
 
   return (
     <div className="border border-border/60 rounded-lg overflow-hidden bg-muted/30">
@@ -109,10 +115,14 @@ export function ToolCallCard({
         ) : toolName === "get_console_logs" && result ? (
           consoleErrorCount > 0 ? (
             <Badge variant="destructive" className="text-xs font-mono h-5">
-              {consoleErrorCount} 个错误{consoleWarnCount > 0 ? ` · ${consoleWarnCount} 个警告` : ""}
+              {consoleErrorCount} 个错误
+              {consoleWarnCount > 0 ? ` · ${consoleWarnCount} 个警告` : ""}
             </Badge>
           ) : consoleWarnCount > 0 ? (
-            <Badge variant="secondary" className="text-xs font-mono h-5 text-yellow-600">
+            <Badge
+              variant="secondary"
+              className="text-xs font-mono h-5 text-yellow-600"
+            >
               {consoleWarnCount} 个警告
             </Badge>
           ) : null
@@ -140,7 +150,10 @@ export function ToolCallCard({
                     : "bg-green-500"
                 : isSuccess && "bg-green-500",
               toolName !== "get_console_logs" && isError && "bg-red-500",
-              toolName !== "get_console_logs" && !isSuccess && !isError && "bg-gray-400",
+              toolName !== "get_console_logs" &&
+                !isSuccess &&
+                !isError &&
+                "bg-green-500",
             )}
           />
         ) : (
@@ -175,7 +188,9 @@ export function ToolCallCard({
                     key={i}
                     className={cn(
                       "text-xs font-mono whitespace-pre-wrap leading-relaxed",
-                      issue.level === "error" ? "text-red-500" : "text-yellow-600",
+                      issue.level === "error"
+                        ? "text-red-500"
+                        : "text-yellow-600",
                     )}
                   >
                     {issue.level === "error" ? "✗" : "⚠"} {issue.text}

@@ -17,9 +17,15 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      diff:
+        specifier: ^8.0.3
+        version: 8.0.3
       file-saver:
         specifier: ^2.0.5
         version: 2.0.5
+      highlight.js:
+        specifier: ^11.11.1
+        version: 11.11.1
       jszip:
         specifier: ^3.10.1
         version: 3.10.1

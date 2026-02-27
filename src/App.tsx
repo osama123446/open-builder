@@ -89,6 +89,7 @@ export default function App() {
           onGenerate={generate}
           onStop={stop}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onSetFiles={(f) => setFiles(f)}
           files={files}
           template={template}
           sandpackKey={sandpackKey}

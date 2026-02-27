@@ -53,6 +53,24 @@ export interface MergedMessage {
   id: string;
 }
 
+// ─── Snapshot types ─────────────────────────────────────────────────────────
+
+/** Incremental project snapshot (git-like) */
+export interface ProjectSnapshot {
+  id: string;
+  /** The conversation this snapshot belongs to */
+  conversationId: string;
+  /** Associated MergedMessage ID (e.g. "assistant-0") */
+  messageId: string;
+  /** File path → unified diff patch (modified files only) */
+  patches: Record<string, string>;
+  /** Newly added files: path → full content */
+  addedFiles: Record<string, string>;
+  /** Paths of deleted files */
+  deletedFiles: string[];
+  createdAt: number;
+}
+
 // ─── Conversation types ──────────────────────────────────────────────────────
 
 export interface Conversation {

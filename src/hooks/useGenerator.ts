@@ -6,12 +6,28 @@ import { useConversationStore } from "../store/conversation";
 import { useSettingsStore } from "../store/settings";
 import { useSandpackStore } from "../store/sandpack";
 import { TAVILY_TOOLS, createTavilyToolHandler } from "../lib/tavily";
+import { useSnapshotStore } from "../store/snapshot";
+import { mergeMessages } from "../lib/mergeMessages";
 import type { Message, ContentPart, ProjectFiles, AISettings, WebSearchSettings } from "../types";
 
 const isErrorMessage = (m: Message) =>
   m.role === "assistant" && typeof m.content === "string" && m.content.startsWith("⚠️");
 
 const removeErrorMessages = (prev: Message[]) => prev.filter((m) => !isErrorMessage(m));
+
+/** Create a snapshot for the current conversation state */
+function createSnapshotForCurrentState() {
+  const state = useConversationStore.getState();
+  const conv = state.activeId ? state.conversations[state.activeId] : null;
+  if (!conv || Object.keys(conv.files).length === 0) return;
+  const merged = mergeMessages(conv.messages);
+  for (let i = merged.length - 1; i >= 0; i--) {
+    if (merged[i].role === "assistant") {
+      useSnapshotStore.getState().createSnapshot(conv.id, merged[i].id, conv.files);
+      return;
+    }
+  }
+}
 
 interface UseGeneratorOptions {
   settings: AISettings;
@@ -184,7 +200,7 @@ export function useGenerator({
             restartSandpack();
           },
           onComplete: () => {
-            // Messages already kept in sync via onText/onToolCall/onToolResult.
+            createSnapshotForCurrentState();
           },
           onError: (error) => {
             console.error("Generation error:", error);
@@ -261,6 +277,7 @@ export function useGenerator({
   const stop = useCallback(() => {
     generatorRef.current?.abort();
     setIsGenerating(false);
+    createSnapshotForCurrentState();
   }, [setIsGenerating]);
 
   const updateFiles = useCallback(
@@ -278,7 +295,6 @@ export function useGenerator({
     (path: string) => {
       setFiles((prev) => {
         const next = { ...prev };
-        // Delete exact match and all children (for folders)
         const prefix = path + "/";
         for (const key of Object.keys(next)) {
           if (key === path || key.startsWith(prefix)) {
