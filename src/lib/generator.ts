@@ -432,14 +432,18 @@ export class WebAppGenerator {
    */
   async generate(
     userMessage: string,
-    images?: string[],
+    attachments?: Array<{ type: string; name: string; content: string; size: number }>,
   ): Promise<GenerateResult> {
-    // Build user message: multi-part if images present
-    if (images && images.length > 0) {
+    // Build user message: multi-part if attachments present
+    if (attachments && attachments.length > 0) {
       const parts: ContentPart[] = [];
       if (userMessage) parts.push({ type: "text", text: userMessage });
-      for (const url of images) {
-        parts.push({ type: "image_url", image_url: { url } });
+      for (const att of attachments) {
+        if (att.type === "image") {
+          parts.push({ type: "image_url", image_url: { url: att.content } });
+        } else {
+          parts.push({ type: "text", text: `[File: ${att.name} | ${att.size}]\n${att.content}` });
+        }
       }
       this.messages.push({ role: "user", content: parts });
     } else {

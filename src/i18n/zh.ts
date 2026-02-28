@@ -47,6 +47,8 @@ export const zh = {
   chat: {
     placeholder: "描述你想要的应用...",
     uploadImage: "上传图片",
+    uploadFile: "上传文件",
+    attachment: "添加附件",
     stopGeneration: "停止生成",
     send: "发送消息",
     newApp: "新应用",

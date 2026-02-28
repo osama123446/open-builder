@@ -15,7 +15,7 @@ import { useIsMobile } from "../hooks/useIsMobile";
 import { useConversationStore } from "../store/conversation";
 import { useSnapshotStore } from "../store/snapshot";
 import { useT } from "../i18n";
-import type { Message, ProjectFiles, ProjectSnapshot } from "../types";
+import type { Message, ProjectFiles, ProjectSnapshot, Attachment } from "../types";
 
 const EMPTY_SNAPSHOTS: ProjectSnapshot[] = [];
 
@@ -56,7 +56,7 @@ interface ChatInterfaceProps {
   messages: Message[];
   isGenerating: boolean;
   hasValidSettings: boolean;
-  onGenerate: (prompt: string, images?: string[]) => Promise<void>;
+  onGenerate: (prompt: string, attachments?: Attachment[]) => Promise<void>;
   onStop: () => void;
   onOpenSettings: () => void;
   onSetFiles: (files: ProjectFiles) => void;
@@ -87,7 +87,7 @@ export function ChatInterface({
 }: ChatInterfaceProps) {
   const t = useT();
   const [input, setInput] = useState("");
-  const [images, setImages] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showSessionList, setShowSessionList] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mergedMessages = useMergedMessages(messages);
@@ -171,14 +171,17 @@ export function ChatInterface({
     [onCompressContext, onReview, onRetry],
   );
 
-  // Find the last assistant message index for the generating indicator
-  let lastAssistantIdx = -1;
-  for (let i = mergedMessages.length - 1; i >= 0; i--) {
-    if (mergedMessages[i].role === "assistant") {
-      lastAssistantIdx = i;
-      break;
+  // Find the last assistant message ID for streaming indicator
+  const lastAssistantId = useMemo(() => {
+    for (let i = mergedMessages.length - 1; i >= 0; i--) {
+      if (mergedMessages[i].role === "assistant") return mergedMessages[i].id;
     }
-  }
+    return null;
+  }, [mergedMessages]);
+
+  // Stable callbacks for MessageBubble (avoid breaking memo)
+  const handleShowDiff = useCallback((id: string) => setDiffMessageId(id), []);
+  const handleRollbackConfirm = useCallback((id: string) => setRollbackConfirmId(id), []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -186,15 +189,15 @@ export function ChatInterface({
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if ((!input.trim() && images.length === 0) || isGenerating) return;
+    if ((!input.trim() && attachments.length === 0) || isGenerating) return;
     if (!hasValidSettings) {
       onOpenSettings();
       return;
     }
     const prompt = input.trim();
-    const imgs = [...images];
+    const atts = [...attachments];
     setInput("");
-    setImages([]);
+    setAttachments([]);
 
     // Flush manual edits into the latest snapshot before generating
     flushSnapshotUpdate();
@@ -206,7 +209,7 @@ export function ChatInterface({
       setRollbackInfo(null);
     }
 
-    await onGenerate(prompt, imgs.length > 0 ? imgs : undefined);
+    await onGenerate(prompt, atts.length > 0 ? atts : undefined);
   };
 
   return (
@@ -242,14 +245,16 @@ export function ChatInterface({
                 (mi === 0 ||
                   parseInt(mergedMessages[mi - 2].id.split("-").pop()!, 10) <
                     compressFromIndex);
+              const isLast = msg.id === lastAssistantId;
               return (
                 <div key={msg.id}>
                   <MessageBubble
                     message={msg}
-                    isGenerating={isGenerating}
+                    isGenerating={isLast && isGenerating}
+                    isLastAssistant={isLast}
                     snapshotExists={snapshotMessageIds.has(msg.id)}
-                    onShowDiff={(id) => setDiffMessageId(id)}
-                    onRollback={(id) => setRollbackConfirmId(id)}
+                    onShowDiff={handleShowDiff}
+                    onRollback={handleRollbackConfirm}
                     onRetry={onRetry}
                   />
                   {showDivider && (
@@ -319,8 +324,8 @@ export function ChatInterface({
             onSubmit={handleSubmit}
             onStop={onStop}
             isGenerating={isGenerating}
-            images={images}
-            onImagesChange={setImages}
+            attachments={attachments}
+            onAttachmentsChange={setAttachments}
             onSlashCommand={handleSlashCommand}
           />
         </>

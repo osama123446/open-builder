@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -6,11 +6,28 @@ import {
   GitCompareArrows,
   Undo2,
   RefreshCw,
+  Paperclip,
 } from "lucide-react";
 import { MarkdownContent } from "./MarkdownContent";
 import { ToolCallCard } from "./ToolCallCard";
 import { useT } from "../../i18n";
-import type { MergedMessage, TextBlock, ImageBlock } from "../../types";
+import type {
+  MergedMessage,
+  TextBlock,
+  ImageBlock,
+  FileBlock,
+} from "../../types";
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getFileExt(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot + 1).toUpperCase() : "";
+}
 
 interface MessageBubbleProps {
   message: MergedMessage;
@@ -22,7 +39,7 @@ interface MessageBubbleProps {
   onRetry?: () => void;
 }
 
-export function MessageBubble({
+export const MessageBubble = memo(function MessageBubble({
   message,
   isGenerating = false,
   isLastAssistant = false,
@@ -39,6 +56,9 @@ export function MessageBubble({
     const imageBlocks = message.blocks.filter(
       (b): b is ImageBlock => b.type === "image",
     );
+    const fileBlocks = message.blocks.filter(
+      (b): b is FileBlock => b.type === "file",
+    );
 
     return (
       <div className="flex justify-end">
@@ -52,6 +72,28 @@ export function MessageBubble({
                   alt=""
                   className="max-w-48 max-h-48 rounded-lg object-cover"
                 />
+              ))}
+            </div>
+          )}
+          {fileBlocks.length > 0 && (
+            <div className="flex flex-col gap-1.5 mb-2">
+              {fileBlocks.map((f) => (
+                <div
+                  key={f.id}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-border/60 bg-neutral-200 dark:bg-neutral-700 max-w-64"
+                >
+                  <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary/10 shrink-0">
+                    <Paperclip size={15} className="text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium truncate">{f.name}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {getFileExt(f.name)}
+                      {getFileExt(f.name) && " · "}
+                      {f.size > 0 ? formatFileSize(f.size) : ""}
+                    </p>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -128,7 +170,7 @@ export function MessageBubble({
       )}
     </div>
   );
-}
+});
 
 function ThinkingBlockCard({
   content,
@@ -152,7 +194,9 @@ function ThinkingBlockCard({
         className="flex items-center gap-2 w-full px-3 py-2 text-muted-foreground hover:bg-muted/50 transition-colors"
       >
         <Lightbulb className="w-3.5 h-3.5 text-purple-500" />
-        <span className="font-medium text-xs text-foreground">{t.message.thinking}</span>
+        <span className="font-medium text-xs text-foreground">
+          {t.message.thinking}
+        </span>
         {expanded ? (
           <ChevronDown className="w-3.5 h-3.5 ml-auto" />
         ) : (

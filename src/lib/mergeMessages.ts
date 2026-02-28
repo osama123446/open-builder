@@ -8,7 +8,8 @@ import type {
 } from "../types";
 import { getT } from "../i18n";
 
-/** Extract plain text from message content (string or multi-part array) */
+/** Extract plain text from message content (string or multi-part array),
+ *  excluding file attachment parts (prefixed with [File: ...]) */
 function getTextContent(
   content: string | ContentPart[] | null | undefined,
 ): string {
@@ -18,6 +19,7 @@ function getTextContent(
     .filter(
       (p): p is Extract<ContentPart, { type: "text" }> => p.type === "text",
     )
+    .filter((p) => !p.text.startsWith("[File: "))
     .map((p) => p.text)
     .join("\n")
     .trim();
@@ -34,6 +36,24 @@ function getImageUrls(
         p.type === "image_url",
     )
     .map((p) => p.image_url.url);
+}
+
+/** Extract file attachment info from multi-part content */
+function getFileAttachments(
+  content: string | ContentPart[] | null | undefined,
+): Array<{ name: string; size: number; text: string }> {
+  if (!content || typeof content === "string") return [];
+  return content
+    .filter(
+      (p): p is Extract<ContentPart, { type: "text" }> => p.type === "text",
+    )
+    .filter((p) => p.text.startsWith("[File: "))
+    .map((p) => {
+      // Format: [File: name | size]\ncontent  or  [File: name]\ncontent (legacy)
+      const match = /^\[File: (.+?)(?:\s*\|\s*(\d+))?\]\n([\s\S]*)$/.exec(p.text);
+      return match ? { name: match[1], size: match[2] ? parseInt(match[2], 10) : 0, text: match[3] } : null;
+    })
+    .filter((f): f is { name: string; size: number; text: string } => f !== null);
 }
 
 export function mergeMessages(messages: Message[]): MergedMessage[] {
@@ -54,6 +74,9 @@ export function mergeMessages(messages: Message[]): MergedMessage[] {
         }
         for (const url of getImageUrls(messages[j].content)) {
           blocks.push({ type: "image", url, id: `img-${i}-${bi++}` });
+        }
+        for (const file of getFileAttachments(messages[j].content)) {
+          blocks.push({ type: "file", name: file.name, content: file.text, size: file.size, id: `file-${i}-${bi++}` });
         }
         j++;
       }

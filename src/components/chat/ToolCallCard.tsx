@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import {
   ChevronRight,
   FolderOpen,
@@ -66,7 +66,7 @@ function parseConsoleIssues(
 
 type ToolCallCardProps = Omit<ToolBlock, "type" | "id">;
 
-export function ToolCallCard({
+export const ToolCallCard = memo(function ToolCallCard({
   toolName,
   title,
   path,
@@ -223,4 +223,4 @@ export function ToolCallCard({
       )}
     </div>
   );
-}
+});

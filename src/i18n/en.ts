@@ -55,6 +55,8 @@ export const en: typeof zh = {
   chat: {
     placeholder: "Describe the app you want...",
     uploadImage: "Upload image",
+    uploadFile: "Upload file",
+    attachment: "Add attachment",
     stopGeneration: "Stop",
     send: "Send",
     newApp: "New App",

@@ -17,6 +17,16 @@ export type { OpenAIClientConfig } from "../lib/client";
 
 // ─── Chat UI types ────────────────────────────────────────────────────────────
 
+/** Attachment in the input pipeline (before sending) */
+export interface Attachment {
+  type: "file" | "image";
+  name: string;
+  /** DataURL for images/PDFs, plain text for text files */
+  content: string;
+  /** Original file size in bytes */
+  size: number;
+}
+
 export interface TextBlock {
   type: "text";
   content: string;
@@ -26,6 +36,15 @@ export interface TextBlock {
 export interface ImageBlock {
   type: "image";
   url: string;
+  id: string;
+}
+
+export interface FileBlock {
+  type: "file";
+  name: string;
+  content: string;
+  /** Original file size in bytes */
+  size: number;
   id: string;
 }
 
@@ -45,7 +64,7 @@ export interface ToolBlock {
   id: string;
 }
 
-export type Block = TextBlock | ImageBlock | ThinkingBlock | ToolBlock;
+export type Block = TextBlock | ImageBlock | FileBlock | ThinkingBlock | ToolBlock;
 
 export interface MergedMessage {
   role: "user" | "assistant";

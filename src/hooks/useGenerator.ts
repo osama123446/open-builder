@@ -9,7 +9,7 @@ import { TAVILY_TOOLS, createTavilyToolHandler } from "../lib/tavily";
 import { useSnapshotStore } from "../store/snapshot";
 import { mergeMessages } from "../lib/mergeMessages";
 import { compressContext as doCompress } from "../lib/compressContext";
-import type { Message, ContentPart, Conversation, ProjectFiles, AISettings, WebSearchSettings } from "../types";
+import type { Message, ContentPart, Conversation, ProjectFiles, AISettings, WebSearchSettings, Attachment } from "../types";
 
 const isErrorMessage = (m: Message) =>
   m.role === "assistant" && typeof m.content === "string" && m.content.startsWith("⚠️");
@@ -253,16 +253,20 @@ export function useGenerator({
   }, [settings, webSearchSettings, files, activeId, setMessages, setFiles, setTemplate, setIsProjectInitialized, restartSandpack]);
 
   const generate = useCallback(
-    async (prompt: string, images?: string[]) => {
+    async (prompt: string, attachments?: Attachment[]) => {
       setIsGenerating(true);
 
-      // Build message content: multi-part if images present, plain string otherwise
+      // Build message content: multi-part if attachments present, plain string otherwise
       let content: string | ContentPart[];
-      if (images && images.length > 0) {
+      if (attachments && attachments.length > 0) {
         const parts: ContentPart[] = [];
         if (prompt) parts.push({ type: "text", text: prompt });
-        for (const url of images) {
-          parts.push({ type: "image_url", image_url: { url } });
+        for (const att of attachments) {
+          if (att.type === "image") {
+            parts.push({ type: "image_url", image_url: { url: att.content } });
+          } else {
+            parts.push({ type: "text", text: `[File: ${att.name} | ${att.size}]\n${att.content}` });
+          }
         }
         content = parts;
       } else {
@@ -283,7 +287,7 @@ export function useGenerator({
 
       setMessages((prev) => [...removeErrorMessages(prev), { role: "user", content }]);
       try {
-        if (generator) await generator.generate(prompt, images);
+        if (generator) await generator.generate(prompt, attachments);
       } catch (err: any) {
         console.error("Error generating:", err);
         if (err?.name !== "AbortError") {

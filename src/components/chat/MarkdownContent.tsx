@@ -1,6 +1,15 @@
-import { memo, useEffect } from "react";
+import {
+  memo,
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  isValidElement,
+  Children,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
+import { Copy, Check } from "lucide-react";
 import lightCss from "highlight.js/styles/github.min.css?raw";
 import darkCss from "highlight.js/styles/github-dark.min.css?raw";
 import { useTheme } from "../../hooks/useTheme";
@@ -23,6 +32,73 @@ function HljsTheme() {
   return null;
 }
 
+/** Extract language name from code element's className (e.g. "language-tsx hljs" → "tsx") */
+function extractLang(children: React.ReactNode): string {
+  const child = Children.toArray(children)[0];
+  if (
+    isValidElement<{ className?: string }>(child) &&
+    typeof child.props?.className === "string"
+  ) {
+    const match = /language-(\w+)/.exec(child.props.className);
+    if (match) return match[1];
+  }
+  return "";
+}
+
+/** Extract plain text from React children tree for clipboard copy */
+function extractText(node: React.ReactNode): string {
+  if (typeof node === "string") return node;
+  if (typeof node === "number") return String(node);
+  if (!node) return "";
+  if (Array.isArray(node)) return node.map(extractText).join("");
+  if (isValidElement<{ children?: React.ReactNode }>(node))
+    return extractText(node.props?.children);
+  return "";
+}
+
+function CodeBlockHeader({
+  lang,
+  preRef,
+}: {
+  lang: string;
+  preRef: React.RefObject<HTMLPreElement | null>;
+}) {
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const handleCopy = useCallback(() => {
+    const text = preRef.current?.textContent ?? "";
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setCopied(false), 1500);
+  }, [preRef]);
+
+  return (
+    <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/40">
+      <span className="text-[11px] text-muted-foreground font-mono select-none">
+        {(lang || "code").toUpperCase()}
+      </span>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+      >
+        <span className="relative w-3.5 h-3.5">
+          <Copy
+            size={14}
+            className={`absolute inset-0 transition-all duration-200 ${copied ? "opacity-0 scale-50" : "opacity-100 scale-100"}`}
+          />
+          <Check
+            size={14}
+            className={`absolute inset-0 transition-all duration-200 ${copied ? "opacity-100 scale-100 text-green-500" : "opacity-0 scale-50"}`}
+          />
+        </span>
+      </button>
+    </div>
+  );
+}
+
 const assistantComponents = {
   p: ({ children }: any) => (
     <p className="text-sm leading-relaxed mb-2 last:mb-0">{children}</p>
@@ -40,11 +116,18 @@ const assistantComponents = {
         {children}
       </code>
     ),
-  pre: ({ children }: any) => (
-    <pre className="bg-muted-foreground/10 rounded-lg p-3 overflow-x-auto my-2 text-xs">
-      {children}
-    </pre>
-  ),
+  pre: ({ children }: any) => {
+    const lang = extractLang(children);
+    const preRef = useRef<HTMLPreElement>(null);
+    return (
+      <div className="rounded-lg overflow-hidden my-2 border border-border/40 bg-muted-foreground/10">
+        <CodeBlockHeader lang={lang} preRef={preRef} />
+        <pre ref={preRef} className="p-3 overflow-x-auto text-xs">
+          {children}
+        </pre>
+      </div>
+    );
+  },
   ul: ({ children }: any) => (
     <ul className="list-disc list-inside my-2 space-y-1">{children}</ul>
   ),
@@ -98,11 +181,18 @@ const userComponents = {
         {children}
       </code>
     ),
-  pre: ({ children }: any) => (
-    <pre className="bg-black/20 rounded-lg p-3 overflow-x-auto my-2 text-xs">
-      {children}
-    </pre>
-  ),
+  pre: ({ children }: any) => {
+    const lang = extractLang(children);
+    const preRef = useRef<HTMLPreElement>(null);
+    return (
+      <div className="rounded-lg overflow-hidden my-2 border border-white/10 bg-black/20">
+        <CodeBlockHeader lang={lang} preRef={preRef} />
+        <pre ref={preRef} className="p-3 overflow-x-auto text-xs">
+          {children}
+        </pre>
+      </div>
+    );
+  },
 };
 
 interface MarkdownContentProps {
