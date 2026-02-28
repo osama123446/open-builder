@@ -6,7 +6,7 @@ import {
   GitCompareArrows,
   Undo2,
   RefreshCw,
-  Paperclip,
+  FileText,
 } from "lucide-react";
 import { MarkdownContent } from "./MarkdownContent";
 import { ToolCallCard } from "./ToolCallCard";
@@ -83,10 +83,15 @@ export const MessageBubble = memo(function MessageBubble({
                   className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-border/60 bg-neutral-200 dark:bg-neutral-700 max-w-64"
                 >
                   <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary/10 shrink-0">
-                    <Paperclip size={15} className="text-primary" />
+                    <FileText size={15} className="text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium truncate">{f.name}</p>
+                    <p
+                      className="text-xs font-medium line-clamp-2"
+                      title={f.name}
+                    >
+                      {f.name}
+                    </p>
                     <p className="text-[10px] text-muted-foreground">
                       {getFileExt(f.name)}
                       {getFileExt(f.name) && " · "}

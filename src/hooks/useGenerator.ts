@@ -9,6 +9,8 @@ import { TAVILY_TOOLS, createTavilyToolHandler } from "../lib/tavily";
 import { useSnapshotStore } from "../store/snapshot";
 import { mergeMessages } from "../lib/mergeMessages";
 import { compressContext as doCompress } from "../lib/compressContext";
+import { generateSmartTitle } from "../lib/smartName";
+import { DEFAULT_TITLE } from "../store/conversation";
 import type { Message, ContentPart, Conversation, ProjectFiles, AISettings, WebSearchSettings, Attachment } from "../types";
 
 const isErrorMessage = (m: Message) =>
@@ -215,6 +217,30 @@ export function useGenerator({
           },
           onComplete: () => {
             createSnapshotForCurrentState();
+
+            // Smart naming: generate title if still using default
+            const convState = useConversationStore.getState();
+            const conv = convState.activeId
+              ? convState.conversations[convState.activeId]
+              : null;
+            if (conv && conv.title === DEFAULT_TITLE) {
+              generateSmartTitle(
+                conv.messages,
+                settings.apiUrl,
+                settings.apiKey,
+                settings.model,
+              ).then((title) => {
+                if (title) {
+                  const current = useConversationStore.getState();
+                  const currentConv = current.conversations[conv.id];
+                  if (currentConv && currentConv.title === DEFAULT_TITLE) {
+                    useConversationStore.getState().renameConversation(conv.id, title);
+                  }
+                }
+              }).catch(() => {
+                // Silently ignore smart naming failures
+              });
+            }
           },
           onError: (error) => {
             console.error("Generation error:", error);
@@ -437,5 +463,30 @@ export function useGenerator({
     await generate("Please review all project files for security vulnerabilities. Use list_files and read_files to examine the code. Report any security issues found with severity and location, or confirm no issues were detected. If issues are found, ask if I should fix them automatically.");
   }, [generate]);
 
-  return { generate, stop, retry, updateFiles, deleteFile, renameFile, moveFile, compressContext, review };
+  const continueTask = useCallback(async () => {
+    setIsGenerating(true);
+    try {
+      const generator = getGenerator();
+      if (generator) {
+        const storeState = useConversationStore.getState();
+        const activeConv = storeState.activeId ? storeState.conversations[storeState.activeId] : null;
+        if (activeConv) {
+          generator.syncMessages(getMessagesForAPI(activeConv));
+        }
+        await generator.generate("Please continue where you left off and complete any unfinished tasks.");
+      }
+    } catch (err: any) {
+      console.error("Error continuing:", err);
+      if (err?.name !== "AbortError") {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: `⚠️ ${err?.message || "Unknown error"}` },
+        ]);
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [getGenerator, setIsGenerating, setMessages]);
+
+  return { generate, stop, retry, continueTask, updateFiles, deleteFile, renameFile, moveFile, compressContext, review };
 }

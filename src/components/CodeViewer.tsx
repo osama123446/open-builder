@@ -5,6 +5,7 @@ import {
   SandpackCodeEditor,
   SandpackPreview,
   SandpackConsole,
+  RoundedButton,
 } from "@codesandbox/sandpack-react";
 import type { SandpackPredefinedTemplate } from "@codesandbox/sandpack-react";
 import { Terminal } from "lucide-react";
@@ -126,15 +127,12 @@ export function CodeViewer({
                     showOpenInCodeSandbox={false}
                     showRefreshButton
                     actionsChildren={
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="w-7 h-7 rounded-full bg-(--sp-colors-surface2) text-(--sp-colors-clickable) hover:bg-(--sp-colors-surface3) hover:text-(--sp-colors-hover) cursor-pointer"
+                      <RoundedButton
                         onClick={() => setShowConsole(!showConsole)}
                         title={showConsole ? t.console.hide : t.console.show}
                       >
                         <Terminal size={16} />
-                      </Button>
+                      </RoundedButton>
                     }
                   />
                 </div>

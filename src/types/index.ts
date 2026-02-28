@@ -106,6 +106,8 @@ export interface Conversation {
   template: string;
   isProjectInitialized: boolean;
   compressedContext?: CompressedContext;
+  pinned?: boolean;
+  archived?: boolean;
   createdAt: number;
   updatedAt: number;
 }

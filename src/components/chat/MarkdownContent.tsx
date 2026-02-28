@@ -8,6 +8,7 @@ import {
   Children,
 } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { Copy, Check } from "lucide-react";
 import lightCss from "highlight.js/styles/github.min.css?raw";
@@ -128,15 +129,37 @@ const assistantComponents = {
       </div>
     );
   },
-  ul: ({ children }: any) => (
-    <ul className="list-disc list-inside my-2 space-y-1">{children}</ul>
-  ),
+  ul: ({ children, className }: any) =>
+    className?.includes("contains-task-list") ? (
+      <ul className="my-2 space-y-1">{children}</ul>
+    ) : (
+      <ul className="list-disc list-inside my-2 space-y-1">{children}</ul>
+    ),
   ol: ({ children }: any) => (
     <ol className="list-decimal list-inside my-2 space-y-1">{children}</ol>
   ),
-  li: ({ children }: any) => (
-    <li className="text-sm leading-relaxed">{children}</li>
-  ),
+  li: ({ children, className }: any) =>
+    className?.includes("task-list-item") ? (
+      <li className="flex items-center gap-2 text-sm leading-relaxed list-none">
+        {children}
+      </li>
+    ) : (
+      <li className="text-sm leading-relaxed pl-1">{children}</li>
+    ),
+  input: ({ type, checked }: any) =>
+    type === "checkbox" ? (
+      <span
+        className={`mt-0.5 shrink-0 inline-flex w-3.5 h-3.5 rounded-sm border items-center justify-center transition-colors ${
+          checked
+            ? "bg-primary border-primary"
+            : "border-muted-foreground/40 bg-transparent"
+        }`}
+      >
+        {checked && (
+          <Check size={9} strokeWidth={3} className="text-primary-foreground" />
+        )}
+      </span>
+    ) : null,
   h1: ({ children }: any) => (
     <h1 className="text-lg font-semibold mt-3 mb-2 first:mt-0">{children}</h1>
   ),
@@ -205,6 +228,7 @@ export const MarkdownContent = memo(
     <>
       <HljsTheme />
       <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
         components={variant === "user" ? userComponents : assistantComponents}
       >

@@ -112,17 +112,40 @@ export interface GeneratorEvents {
 
 // ═══════════════════════════════ 默认常量 ═══════════════════════════════════
 
-const DEFAULT_SYSTEM_PROMPT = `You are an expert web developer. You build complete, working web applications using the provided file-system tools.
+const DEFAULT_SYSTEM_PROMPT = `<role>
+You are an expert web developer specializing in building complete, high-performance, and functional web applications. You utilize professional file systems and tools to deliver production-ready, secure, and accessible code.
+</role>
 
-Guidelines:
-1. Create well-structured projects with proper file organization.
-2. Always write complete, runnable code. Never use placeholders like "// TODO" or "..." to omit code.
-3. Default to modern HTML / CSS / JavaScript unless the user specifies otherwise.
-4. Batch multiple file creations into a single response when possible (parallel tool calls).
-5. For small edits, prefer patch_file over rewriting entire files with write_file.
-6. Always read files before modifying them. Use read_files (plural) when reading 2 or more files at once — never call read_file multiple times in a row.
-7. Briefly explain your plan before starting and summarize when finished.
-8. After completing all file changes, call get_console_logs to check for runtime errors. If errors exist, fix them before finishing.`;
+<workflow>
+1. Constraint Validation: Before any planning or execution, you must explicitly state your understanding of the user's requirements and constraints. You must confirm that all technical requirements are clear before proceeding.
+2. Architecture Summary: Provide a high-level overview of the design patterns, file structure, and technology choices. You must include a brief rationale for choosing specific libraries or frameworks when multiple options exist.
+3. Task Execution Planning: Generate a GFM task list (e.g., * [ ] Step) to outline your strategy. Update this list in real-time. Immediately after completing a subtask, provide an updated version of the list with the completed item checked off ([x]). Your final response for any task must include the completed list with all items checked.
+4. Implementation: Follow the standards defined in the rules section, utilizing tools for file management and code quality.
+5. Verification: Execute mandatory runtime checks to ensure code health.
+</workflow>
+
+<rules>
+- Code Integrity: Produce only complete, runnable code. The use of placeholders, "// TODO" comments, or truncated snippets (e.g., "...") is strictly forbidden.
+- Modern Standards: Use modern ES6+ JavaScript syntax and CSS variables for all styling to ensure maintainability. Use semantic HTML5 elements to improve SEO and structural clarity.
+- UI/UX Design: Explicitly follow mobile-first, responsive design principles as a default standard for all interfaces.
+- Accessibility: All generated UI components must comply with WCAG accessibility standards, including proper ARIA roles and keyboard navigation.
+- Security Protocols: Implement strict security measures, including input sanitization and specific preventions against Cross-Site Scripting (XSS).
+- Documentation: Use JSDoc or standardized commenting for all complex logic, functions, and custom modules.
+- Performance Optimization: Proactively suggest and implement performance enhancements such as code splitting, lazy loading of assets, and efficient resource management.
+- External Assets: Use reliable CDNs for external assets like fonts, icons, and images.
+- Dependencies: Strictly forbid the use of deprecated libraries, APIs, or unmaintained third-party packages.
+- Project Organization: Maintain professional directory structures and logical file hierarchies for all projects to ensure scalability.
+</rules>
+
+<tools>
+- Read-Before-Write: You must always read existing files using the \`read_files\` tool before attempting modifications to maintain full context.
+- Incremental Edits: Prioritize the \`patch_file\` tool for making targeted changes. Avoid overwriting entire files when a patch is sufficient.
+- Efficiency: Batch multiple file creation or modification operations into single responses using parallel tool calls to optimize execution.
+- Mandatory Verification: Before all development tasks are completed, you should execute \`get_console_logs\`. 
+    - Critical Errors: You are responsible for identifying and fixing all runtime errors discovered. 
+    - Warnings: Evaluate warnings for potential impact on performance or stability and resolve them where necessary.
+- Task Finalization: You must not declare a task finished until all identified errors are resolved and the GFM task list is entirely checked off.
+</tools>`;
 
 /** 内置工具定义 */
 const BUILTIN_TOOLS: ToolDefinition[] = [
@@ -432,7 +455,12 @@ export class WebAppGenerator {
    */
   async generate(
     userMessage: string,
-    attachments?: Array<{ type: string; name: string; content: string; size: number }>,
+    attachments?: Array<{
+      type: string;
+      name: string;
+      content: string;
+      size: number;
+    }>,
   ): Promise<GenerateResult> {
     // Build user message: multi-part if attachments present
     if (attachments && attachments.length > 0) {
@@ -442,7 +470,10 @@ export class WebAppGenerator {
         if (att.type === "image") {
           parts.push({ type: "image_url", image_url: { url: att.content } });
         } else {
-          parts.push({ type: "text", text: `[File: ${att.name} | ${att.size}]\n${att.content}` });
+          parts.push({
+            type: "text",
+            text: `[File: ${att.name} | ${att.size}]\n${att.content}`,
+          });
         }
       }
       this.messages.push({ role: "user", content: parts });
@@ -480,7 +511,10 @@ export class WebAppGenerator {
         }
 
         for (const toolCall of assistantMsg.tool_calls) {
-          if (toolCall.function.name === "compact_context" && this.events.onCompact) {
+          if (
+            toolCall.function.name === "compact_context" &&
+            this.events.onCompact
+          ) {
             const compacted = await this.events.onCompact();
             if (compacted) {
               this.messages = compacted;
@@ -490,9 +524,15 @@ export class WebAppGenerator {
             this.messages.push({
               role: "tool",
               tool_call_id: toolCall.id,
-              content: compacted ? "OK — context compressed successfully." : "Context compression skipped (not enough messages).",
+              content: compacted
+                ? "OK — context compressed successfully."
+                : "Context compression skipped (not enough messages).",
             });
-            this.events.onToolResult?.(toolCall.function.name, {}, this.messages[this.messages.length - 1].content as string);
+            this.events.onToolResult?.(
+              toolCall.function.name,
+              {},
+              this.messages[this.messages.length - 1].content as string,
+            );
             continue;
           }
 
@@ -561,7 +601,9 @@ export class WebAppGenerator {
         tools: this.tools.length > 0 ? this.tools : undefined,
         stream,
         ...(this.useThinking
-          ? { thinking: { type: "enabled", budget_tokens: this.thinkingBudget } }
+          ? {
+              thinking: { type: "enabled", budget_tokens: this.thinkingBudget },
+            }
           : {}),
       }),
       signal: this.ctrl.signal,
@@ -673,7 +715,11 @@ export class WebAppGenerator {
             if (!toolCallAccum.has(idx)) {
               // Pre-generate a random fallback ID in case the API doesn't send one
               const fallbackId = `call_${Math.random().toString(36).substring(2, 11)}`;
-              toolCallAccum.set(idx, { id: fallbackId, name: "", arguments: "" });
+              toolCallAccum.set(idx, {
+                id: fallbackId,
+                name: "",
+                arguments: "",
+              });
             }
 
             const entry = toolCallAccum.get(idx)!;

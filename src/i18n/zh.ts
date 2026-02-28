@@ -65,6 +65,16 @@ export const zh = {
   },
   sessions: {
     title: "会话列表",
+    pinned: "已置顶",
+    normal: "会话",
+    archived: "已归档",
+    pin: "置顶",
+    unpin: "取消置顶",
+    archive: "归档",
+    unarchive: "取消归档",
+    rename: "重命名",
+    smartRename: "智能重命名",
+    delete: "删除",
   },
   diff: {
     title: "代码变更",
@@ -95,6 +105,7 @@ export const zh = {
     compact: { name: "/compact", desc: "压缩上下文" },
     review: { name: "/review", desc: "代码安全审查" },
     retry: { name: "/retry", desc: "重试上次操作" },
+    continue: { name: "/continue", desc: "继续未完成的任务" },
   },
   explorer: {
     files: "文件",

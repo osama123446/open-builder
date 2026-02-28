@@ -20,6 +20,7 @@ const SLASH_COMMANDS = [
   "clear",
   "compact",
   "review",
+  "continue",
   "retry",
 ] as const;
 
@@ -95,6 +96,7 @@ export function ChatInput({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const slashMenuRef = useRef<HTMLDivElement>(null);
   const dragCounterRef = useRef(0);
 
   // Slash menu: show when input starts with "/" and has no spaces
@@ -110,6 +112,14 @@ export function ChatInput({
   useEffect(() => {
     setSelectedIdx(0);
   }, [filteredCmds.length]);
+
+  // Scroll selected item into view when navigating with keyboard
+  useEffect(() => {
+    const menu = slashMenuRef.current;
+    if (!menu) return;
+    const item = menu.children[selectedIdx] as HTMLElement | undefined;
+    item?.scrollIntoView({ block: "nearest" });
+  }, [selectedIdx]);
 
   // Close attachment menu on outside click
   useEffect(() => {
@@ -321,7 +331,10 @@ export function ChatInput({
                         size={14}
                         className="shrink-0 text-muted-foreground"
                       />
-                      <span className="truncate text-xs font-medium">
+                      <span
+                        className="line-clamp-2 text-xs font-medium"
+                        title={att.name}
+                      >
                         {att.name}
                       </span>
                     </div>
@@ -345,7 +358,7 @@ export function ChatInput({
         )}
         <div className="relative">
           {showSlashMenu && (
-            <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border rounded-lg shadow-md overflow-hidden z-10">
+            <div ref={slashMenuRef} className="absolute bottom-full left-0 right-0 mb-1 bg-popover border rounded-lg shadow-md overflow-y-auto z-10 max-h-[min(200px,32dvh)]">
               {filteredCmds.map((cmd, i) => (
                 <button
                   key={cmd}

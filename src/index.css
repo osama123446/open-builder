@@ -120,7 +120,40 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* iOS-style scrollbar: thin, overlay, auto-hide */
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0 0 0 / 20%) transparent;
   }
+
+  /* Webkit scrollbar — thin overlay style matching iOS Safari */
+  *::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: oklch(0 0 0 / 20%);
+    border-radius: 100px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: oklch(0 0 0 / 35%);
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .dark *::-webkit-scrollbar-thumb {
+    background: oklch(1 0 0 / 20%);
+  }
+  .dark *::-webkit-scrollbar-thumb:hover {
+    background: oklch(1 0 0 / 35%);
+  }
+  .dark * {
+    scrollbar-color: oklch(1 0 0 / 20%) transparent;
+  }
+
   body {
     @apply bg-background text-foreground;
   }

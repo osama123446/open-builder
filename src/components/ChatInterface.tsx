@@ -15,7 +15,12 @@ import { useIsMobile } from "../hooks/useIsMobile";
 import { useConversationStore } from "../store/conversation";
 import { useSnapshotStore } from "../store/snapshot";
 import { useT } from "../i18n";
-import type { Message, ProjectFiles, ProjectSnapshot, Attachment } from "../types";
+import type {
+  Message,
+  ProjectFiles,
+  ProjectSnapshot,
+  Attachment,
+} from "../types";
 
 const EMPTY_SNAPSHOTS: ProjectSnapshot[] = [];
 
@@ -66,6 +71,7 @@ interface ChatInterfaceProps {
   isProjectInitialized: boolean;
   onCompressContext: () => Promise<void>;
   onRetry: () => Promise<void>;
+  onContinue: () => Promise<void>;
   onReview: () => Promise<void>;
 }
 
@@ -83,6 +89,7 @@ export function ChatInterface({
   isProjectInitialized,
   onCompressContext,
   onRetry,
+  onContinue,
   onReview,
 }: ChatInterfaceProps) {
   const t = useT();
@@ -163,12 +170,15 @@ export function ChatInterface({
         case "review":
           onReview();
           break;
+        case "continue":
+          onContinue();
+          break;
         case "retry":
           onRetry();
           break;
       }
     },
-    [onCompressContext, onReview, onRetry],
+    [onCompressContext, onReview, onRetry, onContinue],
   );
 
   // Find the last assistant message ID for streaming indicator
@@ -181,7 +191,10 @@ export function ChatInterface({
 
   // Stable callbacks for MessageBubble (avoid breaking memo)
   const handleShowDiff = useCallback((id: string) => setDiffMessageId(id), []);
-  const handleRollbackConfirm = useCallback((id: string) => setRollbackConfirmId(id), []);
+  const handleRollbackConfirm = useCallback(
+    (id: string) => setRollbackConfirmId(id),
+    [],
+  );
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -213,123 +226,135 @@ export function ChatInterface({
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background border-r">
+    <div className="relative flex flex-col h-screen bg-background border-r">
       <ChatHeader
         isGenerating={isGenerating}
         onOpenSettings={onOpenSettings}
-        onToggleSessionList={() => setShowSessionList((v) => !v)}
+        onToggleSessionList={() => setShowSessionList(true)}
       />
 
-      {showSessionList ? (
-        <SessionList onClose={() => setShowSessionList(false)} />
-      ) : (
-        <>
+      {/* Session list sidebar overlay */}
+      {showSessionList && (
+        <div
+          className="absolute inset-0 top-0 z-40 backdrop-blur-sm bg-black/20 animate-in fade-in duration-200"
+          onClick={() => setShowSessionList(false)}
+        >
           <div
-            className="flex flex-col flex-1 p-4 pb-0 overflow-y-auto space-y-4"
-            style={{ scrollbarGutter: "stable" }}
+            className="h-full w-full max-w-80 bg-background border-r shadow-lg animate-in slide-in-from-left duration-200"
+            onClick={(e) => e.stopPropagation()}
           >
-            {!hasValidSettings && (
-              <SettingsWarning onOpenSettings={onOpenSettings} />
-            )}
+            <SessionList
+              onToggleSessionList={() => setShowSessionList(false)}
+              onClose={() => setShowSessionList(false)}
+            />
+          </div>
+        </div>
+      )}
 
-            {messages.length === 0 && hasValidSettings && (
-              <EmptyState onSelectSuggestion={setInput} />
-            )}
+      <div
+        className="flex flex-col flex-1 p-4 pb-0 overflow-y-auto space-y-4"
+        style={{ scrollbarGutter: "stable" }}
+      >
+        {!hasValidSettings && (
+          <SettingsWarning onOpenSettings={onOpenSettings} />
+        )}
 
-            {mergedMessages.map((msg, mi) => {
-              const idx = parseInt(msg.id.split("-").pop()!, 10);
-              // Show divider before the first merged message at or after the compression point
-              const showDivider =
-                compressFromIndex >= 0 &&
-                idx >= compressFromIndex &&
-                (mi === 0 ||
-                  parseInt(mergedMessages[mi - 2].id.split("-").pop()!, 10) <
-                    compressFromIndex);
-              const isLast = msg.id === lastAssistantId;
-              return (
-                <div key={msg.id}>
-                  <MessageBubble
-                    message={msg}
-                    isGenerating={isLast && isGenerating}
-                    isLastAssistant={isLast}
-                    snapshotExists={snapshotMessageIds.has(msg.id)}
-                    onShowDiff={handleShowDiff}
-                    onRollback={handleRollbackConfirm}
-                    onRetry={onRetry}
-                  />
-                  {showDivider && (
-                    <div className="flex items-center gap-3 my-4 text-xs text-muted-foreground">
-                      <div className="flex-1 border-t" />
-                      <span>{t.compress.divider}</span>
-                      <div className="flex-1 border-t" />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+        {messages.length === 0 && hasValidSettings && (
+          <EmptyState onSelectSuggestion={setInput} />
+        )}
 
-            {isMobile && isProjectInitialized && !isGenerating && (
-              <MobilePreview
-                files={files}
-                template={template}
-                sandpackKey={sandpackKey}
+        {mergedMessages.map((msg, mi) => {
+          const idx = parseInt(msg.id.split("-").pop()!, 10);
+          // Show divider before the first merged message at or after the compression point
+          const showDivider =
+            compressFromIndex >= 0 &&
+            idx >= compressFromIndex &&
+            (mi === 0 ||
+              parseInt(mergedMessages[mi - 2].id.split("-").pop()!, 10) <
+                compressFromIndex);
+          const isLast = msg.id === lastAssistantId;
+          return (
+            <div key={msg.id}>
+              <MessageBubble
+                message={msg}
+                isGenerating={isLast && isGenerating}
+                isLastAssistant={isLast}
+                snapshotExists={snapshotMessageIds.has(msg.id)}
+                onShowDiff={handleShowDiff}
+                onRollback={handleRollbackConfirm}
+                onRetry={onRetry}
               />
-            )}
-
-            {isGenerating && <GeneratingIndicator />}
-
-            {/* Rollback hint */}
-            {rollbackInfo && !isGenerating && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-400">
-                <Undo2 className="w-3.5 h-3.5 shrink-0" />
-                <span>
-                  {t.rollback.rolledBackTo}
-                  <span className="font-medium">
-                    {rollbackInfo.label || t.rollback.initialState}
-                  </span>
-                </span>
-                <button
-                  onClick={() => setRollbackInfo(null)}
-                  className="ml-auto text-amber-600/60 hover:text-amber-700 dark:hover:text-amber-300 transition-colors cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-
-            {/* Context compression hint */}
-            {!isGenerating &&
-              messages.length > 0 &&
-              typeof messages[messages.length - 1].content === "string" &&
-              (messages[messages.length - 1].content as string).includes(
-                "context_length_exceeded",
-              ) && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-xs text-orange-700 dark:text-orange-400">
-                  <span>{t.compress.hint}</span>
-                  <button
-                    onClick={() => onCompressContext()}
-                    className="ml-auto shrink-0 px-2 py-1 rounded bg-orange-500 text-white text-xs hover:bg-orange-600 transition-colors cursor-pointer"
-                  >
-                    {t.compress.button}
-                  </button>
+              {showDivider && (
+                <div className="flex items-center gap-3 my-4 text-xs text-muted-foreground">
+                  <div className="flex-1 border-t" />
+                  <span>{t.compress.divider}</span>
+                  <div className="flex-1 border-t" />
                 </div>
               )}
+            </div>
+          );
+        })}
 
-            <div ref={messagesEndRef} />
-          </div>
-
-          <ChatInput
-            input={input}
-            onChange={setInput}
-            onSubmit={handleSubmit}
-            onStop={onStop}
-            isGenerating={isGenerating}
-            attachments={attachments}
-            onAttachmentsChange={setAttachments}
-            onSlashCommand={handleSlashCommand}
+        {isMobile && isProjectInitialized && !isGenerating && (
+          <MobilePreview
+            files={files}
+            template={template}
+            sandpackKey={sandpackKey}
           />
-        </>
-      )}
+        )}
+
+        {isGenerating && <GeneratingIndicator />}
+
+        {/* Rollback hint */}
+        {rollbackInfo && !isGenerating && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-400">
+            <Undo2 className="w-3.5 h-3.5 shrink-0" />
+            <span>
+              {t.rollback.rolledBackTo}
+              <span className="font-medium">
+                {rollbackInfo.label || t.rollback.initialState}
+              </span>
+            </span>
+            <button
+              onClick={() => setRollbackInfo(null)}
+              className="ml-auto text-amber-600/60 hover:text-amber-700 dark:hover:text-amber-300 transition-colors cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Context compression hint */}
+        {!isGenerating &&
+          messages.length > 0 &&
+          typeof messages[messages.length - 1].content === "string" &&
+          (messages[messages.length - 1].content as string).includes(
+            "context_length_exceeded",
+          ) && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-xs text-orange-700 dark:text-orange-400">
+              <span>{t.compress.hint}</span>
+              <button
+                onClick={() => onCompressContext()}
+                className="ml-auto shrink-0 px-2 py-1 rounded bg-orange-500 text-white text-xs hover:bg-orange-600 transition-colors cursor-pointer"
+              >
+                {t.compress.button}
+              </button>
+            </div>
+          )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      <ChatInput
+        input={input}
+        onChange={setInput}
+        onSubmit={handleSubmit}
+        onStop={onStop}
+        isGenerating={isGenerating}
+        attachments={attachments}
+        onAttachmentsChange={setAttachments}
+        onSlashCommand={handleSlashCommand}
+      />
 
       {/* Diff modal */}
       {diffMessageId && activeId && (

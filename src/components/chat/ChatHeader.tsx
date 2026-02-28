@@ -1,6 +1,6 @@
-import { PanelLeft, Settings, Github } from "lucide-react";
+import { PanelLeftOpen, Settings, Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useConversationStore } from "../../store/conversation";
+import { useConversationStore, DEFAULT_TITLE } from "../../store/conversation";
 import { useT } from "../../i18n";
 
 interface ChatHeaderProps {
@@ -14,9 +14,11 @@ export function ChatHeader({
   onToggleSessionList,
 }: ChatHeaderProps) {
   const t = useT();
-  const title = useConversationStore((s) =>
-    s.activeId ? (s.conversations[s.activeId]?.title ?? t.chat.newApp) : t.chat.newApp,
+  const rawTitle = useConversationStore((s) =>
+    s.activeId ? (s.conversations[s.activeId]?.title ?? null) : null,
   );
+  const title =
+    !rawTitle || rawTitle === DEFAULT_TITLE ? t.chat.newApp : rawTitle;
 
   return (
     <div className="h-14 px-3 border-b bg-background flex items-center justify-between shrink-0">
@@ -27,7 +29,7 @@ export function ChatHeader({
         title={t.header.sessions}
         className="h-8 w-8 shrink-0"
       >
-        <PanelLeft size={18} />
+        <PanelLeftOpen size={18} />
       </Button>
       <span className="text-sm font-medium truncate px-2 flex-1 text-center">
         {title}

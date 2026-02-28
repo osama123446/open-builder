@@ -1,4 +1,9 @@
 import { useEffect } from "react";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { ChatInterface } from "./components/ChatInterface";
 import { CodeViewer } from "./components/CodeViewer";
 import { SettingsDialog } from "./components/SettingsDialog";
@@ -59,7 +64,18 @@ export default function App() {
     setIsProjectInitialized,
   } = useAppState();
 
-  const { generate, stop, retry, updateFiles, deleteFile, renameFile, moveFile, compressContext, review } = useGenerator({
+  const {
+    generate,
+    stop,
+    retry,
+    continueTask,
+    updateFiles,
+    deleteFile,
+    renameFile,
+    moveFile,
+    compressContext,
+    review,
+  } = useGenerator({
     settings,
     webSearchSettings,
     files,
@@ -86,8 +102,13 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-background">
-      <div className="w-full md:w-100 shrink-0 h-full">
+    <ResizablePanelGroup className="flex h-screen w-full bg-background">
+      <ResizablePanel
+        className="w-full md:w-100 shrink-0 h-full"
+        defaultSize="30%"
+        minSize={360}
+        maxSize="50%"
+      >
         <ChatInterface
           messages={messages}
           isGenerating={isGenerating}
@@ -102,37 +123,42 @@ export default function App() {
           isProjectInitialized={isProjectInitialized}
           onCompressContext={compressContext}
           onRetry={retry}
+          onContinue={continueTask}
           onReview={review}
         />
-      </div>
+      </ResizablePanel>
 
-      {isProjectInitialized && !isMobile ? (
-        <div className="flex-1 h-full min-w-0">
-          <CodeViewer
-            files={files}
-            currentFile={currentFile}
-            onFileSelect={setCurrentFile}
-            onFileChange={updateFiles}
-            onRenameFile={renameFile}
-            onDeleteFile={deleteFile}
-            onMoveFile={moveFile}
-            template={template}
-            sandpackKey={sandpackKey}
-          />
-        </div>
-      ) : (
-        <div className="flex-1 h-full min-w-0 hidden md:flex items-center justify-center bg-muted/30">
-          <div className="text-center max-w-md px-6">
-            <div className="text-5xl mb-6">🚀</div>
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              {t.app.startBuilding}
-            </h2>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              {t.app.startBuildingDesc}
-            </p>
+      <ResizableHandle />
+
+      <ResizablePanel defaultSize="70%">
+        {isProjectInitialized && !isMobile ? (
+          <div className="flex-1 h-full min-w-0">
+            <CodeViewer
+              files={files}
+              currentFile={currentFile}
+              onFileSelect={setCurrentFile}
+              onFileChange={updateFiles}
+              onRenameFile={renameFile}
+              onDeleteFile={deleteFile}
+              onMoveFile={moveFile}
+              template={template}
+              sandpackKey={sandpackKey}
+            />
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="flex-1 h-full min-w-0 hidden md:flex items-center justify-center bg-muted/30">
+            <div className="text-center max-w-md px-6">
+              <div className="text-5xl mb-6">🚀</div>
+              <h2 className="text-xl font-semibold text-foreground mb-2">
+                {t.app.startBuilding}
+              </h2>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {t.app.startBuildingDesc}
+              </p>
+            </div>
+          </div>
+        )}
+      </ResizablePanel>
 
       <SettingsDialog
         isOpen={isSettingsOpen}
@@ -144,6 +170,6 @@ export default function App() {
         systemSettings={systemSettings}
         onSaveSystem={handleSaveSystemSettings}
       />
-    </div>
+    </ResizablePanelGroup>
   );
 }

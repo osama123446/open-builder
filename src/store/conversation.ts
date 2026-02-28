@@ -4,6 +4,11 @@ import localforage from "localforage";
 import { useSnapshotStore } from "./snapshot";
 import type { Conversation, CompressedContext, Message, ProjectFiles } from "../types";
 
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+/** Sentinel value for the default untitled conversation title */
+export const DEFAULT_TITLE = "__new_app__";
+
 // ─── localforage storage adapter ─────────────────────────────────────────────
 
 const localforageStorage = {
@@ -44,20 +49,10 @@ interface ConversationState {
   setIsProjectInitialized: (updater: Updater<boolean>) => void;
   setCompressedContext: (ctx: CompressedContext) => void;
   renameConversation: (id: string, title: string) => void;
-}
-
-// ─── Helper: extract title from first user message ───────────────────────────
-
-function deriveTitle(messages: Message[]): string | null {
-  const first = messages.find((m) => m.role === "user");
-  if (!first) return null;
-  const text =
-    typeof first.content === "string"
-      ? first.content
-      : ((first.content as any[])?.find((p: any) => p.type === "text")?.text ??
-        "");
-  if (!text) return null;
-  return text.slice(0, 20) + (text.length > 20 ? "..." : "");
+  pinConversation: (id: string) => void;
+  unpinConversation: (id: string) => void;
+  archiveConversation: (id: string) => void;
+  unarchiveConversation: (id: string) => void;
 }
 
 // ─── Store ───────────────────────────────────────────────────────────────────
@@ -73,7 +68,7 @@ export const useConversationStore = create<ConversationState>()(
         const id = crypto.randomUUID();
         const conv: Conversation = {
           id,
-          title: "新应用",
+          title: DEFAULT_TITLE,
           messages: [],
           files: {},
           template: "vite-react-ts",
@@ -94,7 +89,7 @@ export const useConversationStore = create<ConversationState>()(
         const id = crypto.randomUUID();
         const conv: Conversation = {
           id,
-          title: src ? src.title : "新应用",
+          title: src ? src.title : DEFAULT_TITLE,
           messages: src ? [...src.messages] : [],
           files: src ? { ...src.files } : {},
           template: src?.template ?? "vite-react-ts",
@@ -131,18 +126,12 @@ export const useConversationStore = create<ConversationState>()(
           if (!s.activeId || !s.conversations[s.activeId]) return s;
           const conv = s.conversations[s.activeId];
           const newMessages = applyUpdater(updater, conv.messages);
-          let title = conv.title;
-          if (title === "新应用") {
-            const derived = deriveTitle(newMessages);
-            if (derived) title = derived;
-          }
           return {
             conversations: {
               ...s.conversations,
               [s.activeId]: {
                 ...conv,
                 messages: newMessages,
-                title,
                 updatedAt: Date.now(),
               },
             },
@@ -228,6 +217,54 @@ export const useConversationStore = create<ConversationState>()(
           };
         });
       },
+
+      pinConversation: (id) => {
+        set((s) => {
+          if (!s.conversations[id]) return s;
+          return {
+            conversations: {
+              ...s.conversations,
+              [id]: { ...s.conversations[id], pinned: true, archived: false, updatedAt: Date.now() },
+            },
+          };
+        });
+      },
+
+      unpinConversation: (id) => {
+        set((s) => {
+          if (!s.conversations[id]) return s;
+          return {
+            conversations: {
+              ...s.conversations,
+              [id]: { ...s.conversations[id], pinned: false, updatedAt: Date.now() },
+            },
+          };
+        });
+      },
+
+      archiveConversation: (id) => {
+        set((s) => {
+          if (!s.conversations[id]) return s;
+          return {
+            conversations: {
+              ...s.conversations,
+              [id]: { ...s.conversations[id], archived: true, pinned: false, updatedAt: Date.now() },
+            },
+          };
+        });
+      },
+
+      unarchiveConversation: (id) => {
+        set((s) => {
+          if (!s.conversations[id]) return s;
+          return {
+            conversations: {
+              ...s.conversations,
+              [id]: { ...s.conversations[id], archived: false, updatedAt: Date.now() },
+            },
+          };
+        });
+      },
     }),
     {
       name: "open-builder-conversations",
@@ -236,7 +273,21 @@ export const useConversationStore = create<ConversationState>()(
         conversations: state.conversations,
         activeId: state.activeId,
       }),
-      onRehydrateStorage: () => () => {
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // Migrate old hardcoded default titles to sentinel value
+          const convs = state.conversations;
+          let changed = false;
+          for (const id of Object.keys(convs)) {
+            if (convs[id].title === "新应用" || convs[id].title === "New App") {
+              convs[id] = { ...convs[id], title: DEFAULT_TITLE };
+              changed = true;
+            }
+          }
+          if (changed) {
+            useConversationStore.setState({ conversations: { ...convs } });
+          }
+        }
         useConversationStore.setState({ _hasHydrated: true });
       },
     },

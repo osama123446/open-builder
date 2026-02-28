@@ -73,6 +73,16 @@ export const en: typeof zh = {
   },
   sessions: {
     title: "Sessions",
+    pinned: "Pinned",
+    normal: "Conversations",
+    archived: "Archived",
+    pin: "Pin",
+    unpin: "Unpin",
+    archive: "Archive",
+    unarchive: "Unarchive",
+    rename: "Rename",
+    smartRename: "Smart Rename",
+    delete: "Delete",
   },
   diff: {
     title: "Code Changes",
@@ -103,6 +113,7 @@ export const en: typeof zh = {
     compact: { name: "/compact", desc: "Compress context" },
     review: { name: "/review", desc: "Security review" },
     retry: { name: "/retry", desc: "Retry last operation" },
+    continue: { name: "/continue", desc: "Continue unfinished task" },
   },
   explorer: {
     files: "Files",
