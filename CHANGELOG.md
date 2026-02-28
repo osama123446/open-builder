@@ -6,6 +6,34 @@
 
 ---
 
+## [1.2.0] - 2026-02-28
+
+### 新增
+
+- 项目快照支持：允许用户将代码回滚到指定历史版本
+- 多语言与外观主题切换支持
+- 上下文压缩功能，有效降低长对话的 Token 消耗
+- 输入框斜杠命令（Slash Command）支持，内置 `/compact`、`/continue` 等快捷指令
+- 文件附件上传支持，可将文件作为上下文输入
+- 会话自动智能命名功能，根据对话内容自动生成标题
+- 对话区域与编辑器区域支持手动拖拽调整宽度
+
+### 重构
+
+- 优化 AI 请求重试逻辑，提升稳定性
+- 优化文件浏览器，新增文件下载和路径复制菜单
+- 优化浅色与深色主题的系统配色
+- 优化消息列表的渲染效果
+- 将会话列表重构为侧边栏并新增右键菜单
+- 重写系统命令描述，增强项目构建需求的表达能力
+
+### 杂项
+
+- 引入 GFM（GitHub Flavored Markdown）支持，改进 Todolist 样式渲染
+- 优化项目整体滚动条样式
+
+---
+
 ## [1.0.0] - 2026-02-26
 
 ### 新增
@@ -44,5 +72,6 @@
 - 支持 OpenAI 兼容 API（OpenAI、DeepSeek 等）
 - 基础文件操作工具：`write_file`、`read_files`、`list_files`、`delete_file`
 
+[1.2.0]: https://github.com/Amery2010/open-builder/compare/v1.0.0...v1.2.0
 [1.0.0]: https://github.com/Amery2010/open-builder/compare/v0.3.0...v1.0.0
 [0.1.0]: https://github.com/Amery2010/open-builder/releases/tag/v0.1.0

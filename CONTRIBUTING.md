@@ -57,7 +57,7 @@
 
 ### 前置要求
 
-- Node.js 18+（推荐使用 [nvm](https://github.com/nvm-sh/nvm) 管理版本）
+- Node.js 20+（推荐使用 [nvm](https://github.com/nvm-sh/nvm) 管理版本）
 - Git
 
 ### 本地运行
@@ -68,10 +68,10 @@ git clone https://github.com/your-username/open-builder.git
 cd open-builder
 
 # 2. 安装依赖
-npm install
+pnpm install
 
 # 3. 启动开发服务器
-npm run dev
+pnpm dev
 ```
 
 访问 `http://localhost:5173`，在设置中填入你的 API Key 即可开始调试。
@@ -79,10 +79,10 @@ npm run dev
 ### 可用命令
 
 ```bash
-npm run dev      # 启动开发服务器（热重载）
-npm run build    # 构建生产版本
-npm run preview  # 预览生产构建
-npm run lint     # TypeScript 类型检查
+pnpm dev      # 启动开发服务器（热重载）
+pnpm build    # 构建生产版本
+pnpm preview  # 预览生产构建
+pnpm lint     # TypeScript 类型检查
 ```
 
 ---
@@ -157,8 +157,8 @@ refactor(store): 将会话持久化逻辑迁移到 Zustand middleware
 3. **确保代码质量**
 
    ```bash
-   npm run lint   # 确保无 TypeScript 错误
-   npm run build  # 确保构建成功
+   pnpm lint   # 确保无 TypeScript 错误
+   pnpm build  # 确保构建成功
    ```
 
 4. **推送并创建 PR**

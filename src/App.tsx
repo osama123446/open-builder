@@ -104,7 +104,7 @@ export default function App() {
   return (
     <ResizablePanelGroup className="flex h-screen w-full bg-background">
       <ResizablePanel
-        className="w-full md:w-100 shrink-0 h-full"
+        className="h-screen w-full md:w-100 shrink-0 overflow-hidden"
         defaultSize="30%"
         minSize={360}
         maxSize="50%"
@@ -130,32 +130,28 @@ export default function App() {
 
       <ResizableHandle />
 
-      <ResizablePanel defaultSize="70%">
+      <ResizablePanel className="h-screen flex-1 min-w-0 overflow-hidden">
         {isProjectInitialized && !isMobile ? (
-          <div className="flex-1 h-full min-w-0">
-            <CodeViewer
-              files={files}
-              currentFile={currentFile}
-              onFileSelect={setCurrentFile}
-              onFileChange={updateFiles}
-              onRenameFile={renameFile}
-              onDeleteFile={deleteFile}
-              onMoveFile={moveFile}
-              template={template}
-              sandpackKey={sandpackKey}
-            />
-          </div>
+          <CodeViewer
+            files={files}
+            currentFile={currentFile}
+            onFileSelect={setCurrentFile}
+            onFileChange={updateFiles}
+            onRenameFile={renameFile}
+            onDeleteFile={deleteFile}
+            onMoveFile={moveFile}
+            template={template}
+            sandpackKey={sandpackKey}
+          />
         ) : (
-          <div className="flex-1 h-full min-w-0 hidden md:flex items-center justify-center bg-muted/30">
-            <div className="text-center max-w-md px-6">
-              <div className="text-5xl mb-6">🚀</div>
-              <h2 className="text-xl font-semibold text-foreground mb-2">
-                {t.app.startBuilding}
-              </h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                {t.app.startBuildingDesc}
-              </p>
-            </div>
+          <div className="text-center max-w-md px-6 hidden md:flex items-center justify-center bg-muted/30">
+            <div className="text-5xl mb-6">🚀</div>
+            <h2 className="text-xl font-semibold text-foreground mb-2">
+              {t.app.startBuilding}
+            </h2>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              {t.app.startBuildingDesc}
+            </p>
           </div>
         )}
       </ResizablePanel>
