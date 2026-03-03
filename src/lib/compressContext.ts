@@ -1,5 +1,6 @@
 import type { Message } from "./generator";
 import type { CompressedContext } from "../types";
+import { buildApiUrl } from "./client";
 
 export interface CompressResult {
   summary: string;
@@ -8,7 +9,7 @@ export interface CompressResult {
 
 export async function compressContext(
   messages: Message[],
-  apiUrl: string,
+  apiBaseUrl: string,
   apiKey: string,
   model: string,
   existingContext?: CompressedContext,
@@ -40,7 +41,7 @@ export async function compressContext(
       .join("\n");
   }
 
-  const res = await fetch(apiUrl, {
+  const res = await fetch(buildApiUrl(apiBaseUrl, "/chat/completions"), {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({

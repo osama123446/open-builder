@@ -351,6 +351,7 @@ export function ChatInterface({
         onSubmit={handleSubmit}
         onStop={onStop}
         isGenerating={isGenerating}
+        messages={messages}
         attachments={attachments}
         onAttachmentsChange={setAttachments}
         onSlashCommand={handleSlashCommand}

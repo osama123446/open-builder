@@ -125,13 +125,13 @@ export function SessionList({
     if (!conv || conv.messages.length === 0) return;
 
     const ai = useSettingsStore.getState().ai;
-    if (!ai.apiKey || !ai.apiUrl || !ai.model) return;
+    if (!ai.apiKey || !ai.apiBaseUrl || !ai.model) return;
 
     setRenamingId(convId);
     try {
       const title = await generateSmartTitle(
         conv.messages,
-        ai.apiUrl,
+        ai.apiBaseUrl,
         ai.apiKey,
         ai.model,
       );

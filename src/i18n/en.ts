@@ -13,10 +13,14 @@ export const en: typeof zh = {
     cancel: "Cancel",
     save: "Save",
     apiKey: { hint: "Your API key will be saved in browser local storage" },
-    apiUrl: { hint: "OpenAI-compatible API endpoint" },
+    apiBaseUrl: {
+      hint: "OpenAI-compatible API base URL, e.g. https://api.openai.com",
+      preview: "Preview: ",
+    },
     model: {
       label: "Model Name",
       hint: "AI model name, e.g. gpt-5.3-codex, deepseek-chat",
+      selectPlaceholder: "Select a model",
     },
     webSearch: {
       desc: "After configuration, AI will be able to search and read web pages",

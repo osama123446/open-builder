@@ -5,6 +5,7 @@
 // ============================================================================
 
 import { SANDBOX_TEMPLATES } from "@codesandbox/sandpack-react";
+import { buildApiUrl } from "./client";
 
 // ═══════════════════════════════ 类型定义 ═══════════════════════════════════
 
@@ -60,8 +61,8 @@ export interface GenerateResult {
 
 /** 构造选项 */
 export interface GeneratorOptions {
-  /** OpenAI 兼容 API 端点, 如 "https://api.openai.com/v1/chat/completions" */
-  apiUrl: string;
+  /** OpenAI 兼容 API 基础地址, 如 "https://api.openai.com" */
+  apiBaseUrl: string;
   /** API 密钥 */
   apiKey: string;
   /** 模型 ID, 如 "gpt-5.3-codex"、"deepseek-chat"、"claude-3-5-sonnet" */
@@ -385,7 +386,7 @@ export class WebAppGenerator {
   private ctrl: AbortController | null = null;
 
   // ── 配置（只读） ──
-  private readonly apiUrl: string;
+  private readonly apiBaseUrl: string;
   private readonly apiKey: string;
   private readonly model: string;
   private readonly systemPrompt: string;
@@ -401,7 +402,7 @@ export class WebAppGenerator {
   private systemPromptSuffix: string = "";
 
   constructor(options: GeneratorOptions, events: GeneratorEvents = {}) {
-    this.apiUrl = options.apiUrl;
+    this.apiBaseUrl = options.apiBaseUrl;
     this.apiKey = options.apiKey;
     this.model = options.model;
     this.systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
@@ -678,7 +679,7 @@ export class WebAppGenerator {
   }
 
   private async requestJSON(messages: Message[]): Promise<Message> {
-    const res = await fetch(this.apiUrl, this.buildFetchInit(messages, false));
+    const res = await fetch(buildApiUrl(this.apiBaseUrl, "/chat/completions"), this.buildFetchInit(messages, false));
     if (!res.ok) {
       const error = new Error(await this.parseApiError(res));
       (error as any).status = res.status;
@@ -710,7 +711,7 @@ export class WebAppGenerator {
   }
 
   private async requestStream(messages: Message[]): Promise<Message> {
-    const res = await fetch(this.apiUrl, this.buildFetchInit(messages, true));
+    const res = await fetch(buildApiUrl(this.apiBaseUrl, "/chat/completions"), this.buildFetchInit(messages, true));
     if (!res.ok) {
       const error = new Error(await this.parseApiError(res));
       (error as any).status = res.status;

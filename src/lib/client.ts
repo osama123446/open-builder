@@ -10,14 +10,28 @@ import {
  * OpenAI 兼容客户端配置
  */
 export interface OpenAIClientConfig {
-  /** API 端点 URL */
-  apiUrl?: string;
+  /** API 基础地址 */
+  apiBaseUrl?: string;
   /** API 密钥 */
   apiKey: string;
   /** 模型名称 */
   model?: string;
   /** 是否启用流式输出 */
   stream?: boolean;
+}
+
+export const CHAT_COMPLETIONS_PATH = "/v1/chat/completions";
+
+/**
+ * 根据 API Base URL 构建完整请求 URL
+ * 如果 baseUrl 已经以 /v{数字} 结尾，则只拼接 path 部分（不再添加 /v1）
+ */
+export function buildApiUrl(baseUrl: string, path: string): string {
+  const base = baseUrl.replace(/\/+$/, "");
+  if (/\/v\d+$/.test(base)) {
+    return `${base}${path}`;
+  }
+  return `${base}/v1${path}`;
 }
 
 /**
@@ -31,7 +45,7 @@ export function createOpenAIGenerator(
   customToolHandler?: (name: string, args: unknown) => string | Promise<string>,
 ): WebAppGenerator {
   const options: GeneratorOptions = {
-    apiUrl: config.apiUrl || "https://api.openai.com/v1/chat/completions",
+    apiBaseUrl: config.apiBaseUrl || "https://api.openai.com",
     apiKey: config.apiKey,
     model: config.model || "gpt-5.3-codex",
     stream: config.stream ?? true,

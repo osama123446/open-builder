@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useT } from "../../i18n";
 import type { Attachment } from "../../types";
+import type { Message } from "../../lib/generator";
 
 const SLASH_COMMANDS = [
   "new",
@@ -23,6 +24,9 @@ const SLASH_COMMANDS = [
   "continue",
   "retry",
 ] as const;
+
+/** Commands that require existing conversation messages */
+const NEEDS_MESSAGES = new Set(["fork", "clear", "compact", "review", "continue", "retry"]);
 
 const FILE_ACCEPT =
   "text/*,application/json,application/xml,application/javascript,application/xhtml+xml,application/x-yaml,application/sql,application/graphql,application/ld+json,application/x-sh,application/x-httpd-php,application/typescript,application/pdf";
@@ -72,6 +76,7 @@ interface ChatInputProps {
   onSubmit: (e: React.SyntheticEvent<HTMLFormElement>) => void;
   onStop: () => void;
   isGenerating: boolean;
+  messages: Message[];
   attachments: Attachment[];
   onAttachmentsChange: (attachments: Attachment[]) => void;
   onSlashCommand: (cmd: string) => void;
@@ -83,6 +88,7 @@ export function ChatInput({
   onSubmit,
   onStop,
   isGenerating,
+  messages,
   attachments,
   onAttachmentsChange,
   onSlashCommand,
@@ -101,11 +107,28 @@ export function ChatInput({
 
   // Slash menu: show when input starts with "/" and has no spaces
   const slashMatch = /^\/(\S*)$/.exec(input);
+
+  const hasMessages = messages.length > 0;
+  const lastMsg = hasMessages ? messages[messages.length - 1] : null;
+  const lastIsError =
+    lastMsg?.role === "assistant" &&
+    typeof lastMsg.content === "string" &&
+    lastMsg.content.startsWith("⚠️");
+
   const filteredCmds = useMemo(() => {
     if (!slashMatch) return [];
     const q = slashMatch[1].toLowerCase();
-    return SLASH_COMMANDS.filter((c) => c.startsWith(q));
-  }, [slashMatch?.[1]]);
+    return SLASH_COMMANDS.filter((c) => {
+      if (!c.startsWith(q)) return false;
+      // Commands requiring messages
+      if (NEEDS_MESSAGES.has(c) && !hasMessages) return false;
+      // /retry only when last message is an error
+      if (c === "retry") return lastIsError;
+      // /continue only when there are messages and last is not an error
+      if (c === "continue") return hasMessages && !lastIsError;
+      return true;
+    });
+  }, [slashMatch?.[1], hasMessages, lastIsError]);
   const showSlashMenu = filteredCmds.length > 0 && !isGenerating;
 
   // Reset selection when filtered commands change

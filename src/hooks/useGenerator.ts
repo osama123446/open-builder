@@ -132,7 +132,7 @@ export function useGenerator({
   const prevActiveIdRef = useRef(activeId);
 
   const getGenerator = useCallback(() => {
-    if (!settings.apiKey || !settings.apiUrl || !settings.model) return null;
+    if (!settings.apiKey || !settings.apiBaseUrl || !settings.model) return null;
 
     // Invalidate on conversation switch
     if (prevActiveIdRef.current !== activeId) {
@@ -145,7 +145,7 @@ export function useGenerator({
       const g = generatorRef.current as any;
       if (
         g._apiKey !== settings.apiKey ||
-        g._apiUrl !== settings.apiUrl ||
+        g._apiBaseUrl !== settings.apiBaseUrl ||
         g._model !== settings.model ||
         g._tavilyKey !== webSearchSettings.tavilyApiKey ||
         g._tavilyUrl !== webSearchSettings.tavilyApiUrl
@@ -182,7 +182,7 @@ export function useGenerator({
       generatorRef.current = createOpenAIGenerator(
         {
           apiKey: settings.apiKey,
-          apiUrl: settings.apiUrl,
+          apiBaseUrl: settings.apiBaseUrl,
           model: settings.model,
           stream: true,
         },
@@ -289,7 +289,7 @@ export function useGenerator({
             if (conv && conv.title === DEFAULT_TITLE) {
               generateSmartTitle(
                 conv.messages,
-                settings.apiUrl,
+                settings.apiBaseUrl,
                 settings.apiKey,
                 settings.model,
               ).then((title) => {
@@ -325,7 +325,7 @@ export function useGenerator({
             if (!conv) return null;
             const result = await doCompress(
               conv.messages,
-              settings.apiUrl,
+              settings.apiBaseUrl,
               settings.apiKey,
               settings.model,
               conv.compressedContext,
@@ -343,7 +343,7 @@ export function useGenerator({
       // Store config markers for invalidation comparison
       const gen = generatorRef.current as any;
       gen._apiKey = settings.apiKey;
-      gen._apiUrl = settings.apiUrl;
+      gen._apiBaseUrl = settings.apiBaseUrl;
       gen._model = settings.model;
       gen._tavilyKey = webSearchSettings.tavilyApiKey;
       gen._tavilyUrl = webSearchSettings.tavilyApiUrl;
@@ -521,7 +521,7 @@ export function useGenerator({
     try {
       const result = await doCompress(
         conv.messages,
-        settings.apiUrl,
+        settings.apiBaseUrl,
         settings.apiKey,
         settings.model,
         conv.compressedContext,

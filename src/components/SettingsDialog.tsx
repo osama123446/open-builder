@@ -1,11 +1,21 @@
-import { useState, useEffect } from "react";
-import { Key, Globe, Cpu, Search, Languages, Sun, Info } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Key,
+  Globe,
+  Cpu,
+  Search,
+  Languages,
+  Sun,
+  Info,
+  RefreshCw,
+} from "lucide-react";
 import {
   AISettings,
   WebSearchSettings,
   SystemSettings,
   Language,
   Theme,
+  useSettingsStore,
 } from "../store/settings";
 import {
   Dialog,
@@ -18,7 +28,15 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { buildApiUrl } from "@/lib/client";
 import { version } from "../../package.json";
 import { useT } from "../i18n";
 
@@ -128,6 +146,88 @@ function ModelSettingsTab({
   setFormData: (v: AISettings) => void;
 }) {
   const t = useT();
+  const modelCache = useSettingsStore((s) => s.modelCache);
+  const setModelCache = useSettingsStore((s) => s.setModelCache);
+  const clearModelCache = useSettingsStore((s) => s.clearModelCache);
+
+  const cacheHit =
+    modelCache &&
+    modelCache.apiBaseUrl === formData.apiBaseUrl &&
+    modelCache.apiKey === formData.apiKey;
+
+  const [models, setModels] = useState<string[]>(
+    cacheHit ? modelCache.models : [],
+  );
+  const [fetchFailed, setFetchFailed] = useState(!cacheHit);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchModels = useCallback(async () => {
+    if (!formData.apiBaseUrl || !formData.apiKey) {
+      setModels([]);
+      setFetchFailed(true);
+      clearModelCache();
+      return;
+    }
+    setIsLoading(true);
+    setIsRefreshing(true);
+    try {
+      const modelsUrl = buildApiUrl(formData.apiBaseUrl, "/models");
+      const res = await fetch(modelsUrl, {
+        headers: { Authorization: `Bearer ${formData.apiKey}` },
+      });
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      const ids: string[] = (json.data || [])
+        .map((m: any) => m.id)
+        .filter(Boolean)
+        .sort();
+      setModels(ids);
+      setFetchFailed(false);
+      setModelCache({
+        models: ids,
+        apiBaseUrl: formData.apiBaseUrl,
+        apiKey: formData.apiKey,
+      });
+    } catch {
+      setModels([]);
+      setFetchFailed(true);
+      clearModelCache();
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  }, [formData.apiBaseUrl, formData.apiKey, setModelCache, clearModelCache]);
+
+  useEffect(() => {
+    if (!formData.apiBaseUrl || !formData.apiKey) {
+      setModels([]);
+      setFetchFailed(true);
+      return;
+    }
+    // Use cache if apiBaseUrl and apiKey haven't changed
+    const cached = useSettingsStore.getState().modelCache;
+    if (
+      cached &&
+      cached.apiBaseUrl === formData.apiBaseUrl &&
+      cached.apiKey === formData.apiKey
+    ) {
+      setModels(cached.models);
+      setFetchFailed(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      fetchModels();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [formData.apiBaseUrl, formData.apiKey]);
+
+  const showDropdown = models.length > 0 && !fetchFailed;
+  const displayModels =
+    showDropdown && formData.model && !models.includes(formData.model)
+      ? [formData.model, ...models]
+      : models;
+
   return (
     <>
       <div className="space-y-2">
@@ -148,19 +248,24 @@ function ModelSettingsTab({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="apiUrl">
+        <Label htmlFor="apiBaseUrl">
           <Globe size={16} className="inline mr-1" />
-          API URL
+          API Base URL
         </Label>
         <Input
-          id="apiUrl"
+          id="apiBaseUrl"
           type="text"
-          value={formData.apiUrl}
-          onChange={(e) => setFormData({ ...formData, apiUrl: e.target.value })}
-          placeholder="https://api.openai.com/v1/chat/completions"
+          value={formData.apiBaseUrl}
+          onChange={(e) =>
+            setFormData({ ...formData, apiBaseUrl: e.target.value })
+          }
+          placeholder="https://api.openai.com"
         />
-        <p className="text-xs text-muted-foreground">
-          {t.settings.apiUrl.hint}
+        <p className="text-xs text-muted-foreground truncate">
+          {t.settings.apiBaseUrl.preview}
+          {formData.apiBaseUrl
+            ? buildApiUrl(formData.apiBaseUrl, "/chat/completions")
+            : "https://api.openai.com/v1/chat/completions"}
         </p>
       </div>
 
@@ -169,13 +274,70 @@ function ModelSettingsTab({
           <Cpu size={16} className="inline mr-1" />
           {t.settings.model.label}
         </Label>
-        <Input
-          id="model"
-          type="text"
-          value={formData.model}
-          onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-          placeholder="gpt-5.3-codex"
-        />
+        {showDropdown ? (
+          <div className="flex gap-2">
+            <Select
+              value={formData.model}
+              onValueChange={(v) => setFormData({ ...formData, model: v })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t.settings.model.selectPlaceholder} />
+              </SelectTrigger>
+              <SelectContent>
+                {displayModels.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0 size-9"
+              onClick={(e) => {
+                e.preventDefault();
+                fetchModels();
+              }}
+              disabled={isLoading}
+            >
+              <RefreshCw
+                size={14}
+                className={cn(isRefreshing && "animate-spin")}
+              />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Input
+              id="model"
+              type="text"
+              value={formData.model}
+              onChange={(e) =>
+                setFormData({ ...formData, model: e.target.value })
+              }
+              placeholder="gpt-5.3-codex"
+              className="flex-1"
+            />
+            {formData.apiBaseUrl && formData.apiKey && (
+              <Button
+                variant="outline"
+                size="icon"
+                className="shrink-0 size-9"
+                onClick={(e) => {
+                  e.preventDefault();
+                  fetchModels();
+                }}
+                disabled={isLoading}
+              >
+                <RefreshCw
+                  size={14}
+                  className={cn(isRefreshing && "animate-spin")}
+                />
+              </Button>
+            )}
+          </div>
+        )}
         <p className="text-xs text-muted-foreground">{t.settings.model.hint}</p>
       </div>
     </>

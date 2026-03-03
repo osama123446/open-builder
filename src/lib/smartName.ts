@@ -1,4 +1,5 @@
 import type { Message } from "./generator";
+import { buildApiUrl } from "./client";
 
 /**
  * Generate a smart title (4-12 words) for a conversation based on its messages.
@@ -6,7 +7,7 @@ import type { Message } from "./generator";
  */
 export async function generateSmartTitle(
   messages: Message[],
-  apiUrl: string,
+  apiBaseUrl: string,
   apiKey: string,
   model: string,
 ): Promise<string | null> {
@@ -27,7 +28,7 @@ export async function generateSmartTitle(
     .join("\n");
 
   try {
-    const res = await fetch(apiUrl, {
+    const res = await fetch(buildApiUrl(apiBaseUrl, "/chat/completions"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
